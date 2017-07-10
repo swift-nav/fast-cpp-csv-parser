@@ -944,6 +944,9 @@ namespace io{
 
                 template<class overflow_policy, class T>
                 void parse_unsigned_integer(const char*col, T&x){
+                        if (*col == '\0') {
+                                throw error::no_digit();
+                        }
                         x = 0;
                         while(*col != '\0'){
                                 if('0' <= *col && *col <= '9'){
@@ -972,6 +975,9 @@ namespace io{
                
                 template<class overflow_policy, class T>
                 void parse_signed_integer(const char*col, T&x){
+                        if (*col == '\0') {
+                                throw error::no_digit();
+                        }
                         if(*col == '-'){
                                 ++col;
 
@@ -1007,6 +1013,9 @@ namespace io{
 
                 template<class T>
                 void parse_float(const char*col, T&x){
+                        if (*col == '\0') {
+                                throw error::no_digit();
+                        }
                         bool is_neg = false;
                         if(*col == '-'){
                                 is_neg = true;
