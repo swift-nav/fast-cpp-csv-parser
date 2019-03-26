@@ -71,9 +71,9 @@ const int max_file_name_length = 255;
 struct with_file_name {
   with_file_name() { std::memset(file_name, 0, sizeof(file_name)); }
 
-  void set_file_name(const char *file_name) {
+  void set_file_name(const char *fn) {
     if (file_name != nullptr) {
-      strncpy(this->file_name, file_name, sizeof(this->file_name));
+      strncpy(this->file_name, fn, sizeof(this->file_name));
       this->file_name[sizeof(this->file_name) - 1] = '\0';
     } else {
       this->file_name[0] = '\0';
@@ -86,7 +86,7 @@ struct with_file_name {
 struct with_file_line {
   with_file_line() { file_line = -1; }
 
-  void set_file_line(int file_line) { this->file_line = file_line; }
+  void set_file_line(int fl) { this->file_line = fl; }
 
   int file_line;
 };
@@ -94,7 +94,7 @@ struct with_file_line {
 struct with_errno {
   with_errno() { errno_value = 0; }
 
-  void set_errno(int errno_value) { this->errno_value = errno_value; }
+  void set_errno(int ev) { this->errno_value = ev; }
 
   int errno_value;
 };
@@ -131,12 +131,14 @@ namespace detail {
 
 class OwningStdIOByteSourceBase : public ByteSourceBase {
  public:
-  explicit OwningStdIOByteSourceBase(FILE *file) : file(file) {
+  explicit OwningStdIOByteSourceBase(FILE *f) : file(f) {
     // Tell the std library that we want to do the buffering ourself.
     std::setvbuf(file, 0, _IONBF, 0);
   }
 
-  int read(char *buffer, int size) { return std::fread(buffer, 1, size, file); }
+  int read(char *buffer, int size) {
+    return (int)std::fread(buffer, 1, size, file);
+  }
 
   ~OwningStdIOByteSourceBase() { std::fclose(file); }
 
@@ -146,11 +148,11 @@ class OwningStdIOByteSourceBase : public ByteSourceBase {
 
 class NonOwningIStreamByteSource : public ByteSourceBase {
  public:
-  explicit NonOwningIStreamByteSource(std::istream &in) : in(in) {}
+  explicit NonOwningIStreamByteSource(std::istream &ins) : in(ins) {}
 
   int read(char *buffer, int size) {
     in.read(buffer, size);
-    return in.gcount();
+    return (int)in.gcount();
   }
 
   ~NonOwningIStreamByteSource() {}
@@ -161,11 +163,11 @@ class NonOwningIStreamByteSource : public ByteSourceBase {
 
 class NonOwningStringByteSource : public ByteSourceBase {
  public:
-  NonOwningStringByteSource(const char *str, long long size)
-      : str(str), remaining_byte_count(size) {}
+  NonOwningStringByteSource(const char *string, int32_t size)
+      : str(string), remaining_byte_count(size) {}
 
-  int read(char *buffer, int desired_byte_count) {
-    int to_copy_byte_count = desired_byte_count;
+  int32_t read(char *buffer, int desired_byte_count) {
+    int32_t to_copy_byte_count = desired_byte_count;
     if (remaining_byte_count < to_copy_byte_count)
       to_copy_byte_count = remaining_byte_count;
     std::memcpy(buffer, str, to_copy_byte_count);
@@ -178,14 +180,14 @@ class NonOwningStringByteSource : public ByteSourceBase {
 
  private:
   const char *str;
-  long long remaining_byte_count;
+  int32_t remaining_byte_count;
 };
 
 #ifndef CSV_IO_NO_THREAD
 class AsynchronousReader {
  public:
   void init(std::unique_ptr<ByteSourceBase> arg_byte_source) {
-    std::unique_lock<std::mutex> guard(lock);
+    // std::unique_lock<std::mutex> guard(lock);
     byte_source = std::move(arg_byte_source);
     desired_byte_count = -1;
     termination_requested = false;
@@ -335,73 +337,67 @@ class LineReader {
   LineReader(const LineReader &) = delete;
   LineReader &operator=(const LineReader &) = delete;
 
-  explicit LineReader(const char *file_name) {
-    set_file_name(file_name);
-    init(open_file(file_name));
+  explicit LineReader(const char *fn) {
+    set_file_name(fn);
+    init(open_file(fn));
   }
 
-  explicit LineReader(const std::string &file_name) {
-    set_file_name(file_name.c_str());
-    init(open_file(file_name.c_str()));
+  explicit LineReader(const std::string &fn) {
+    set_file_name(fn.c_str());
+    init(open_file(fn.c_str()));
   }
 
-  LineReader(const char *file_name,
-             std::unique_ptr<ByteSourceBase> byte_source) {
-    set_file_name(file_name);
-    init(std::move(byte_source));
+  LineReader(const char *fn, std::unique_ptr<ByteSourceBase> bs) {
+    set_file_name(fn);
+    init(std::move(bs));
   }
 
-  LineReader(const std::string &file_name,
-             std::unique_ptr<ByteSourceBase> byte_source) {
-    set_file_name(file_name.c_str());
-    init(std::move(byte_source));
+  LineReader(const std::string &fn, std::unique_ptr<ByteSourceBase> bs) {
+    set_file_name(fn.c_str());
+    init(std::move(bs));
   }
 
-  LineReader(const char *file_name, const char *data_begin,
-             const char *data_end) {
-    set_file_name(file_name);
+  LineReader(const char *fn, const char *data_b, const char *data_e) {
+    set_file_name(fn);
     init(std::unique_ptr<ByteSourceBase>(new detail::NonOwningStringByteSource(
-        data_begin, data_end - data_begin)));
+        data_b, (int32_t)(data_e - data_b))));
   }
 
-  LineReader(const std::string &file_name, const char *data_begin,
-             const char *data_end) {
-    set_file_name(file_name.c_str());
+  LineReader(const std::string &fn, const char *data_b, const char *data_e) {
+    set_file_name(fn.c_str());
     init(std::unique_ptr<ByteSourceBase>(new detail::NonOwningStringByteSource(
-        data_begin, data_end - data_begin)));
+        data_b, (int32_t)(data_e - data_b))));
   }
 
-  LineReader(const char *file_name, FILE *file) {
-    set_file_name(file_name);
+  LineReader(const char *fn, FILE *file) {
+    set_file_name(fn);
     init(std::unique_ptr<ByteSourceBase>(
         new detail::OwningStdIOByteSourceBase(file)));
   }
 
-  LineReader(const std::string &file_name, FILE *file) {
-    set_file_name(file_name.c_str());
+  LineReader(const std::string &fn, FILE *file) {
+    set_file_name(fn.c_str());
     init(std::unique_ptr<ByteSourceBase>(
         new detail::OwningStdIOByteSourceBase(file)));
   }
 
-  LineReader(const char *file_name, std::istream &in) {
-    set_file_name(file_name);
+  LineReader(const char *fn, std::istream &in) {
+    set_file_name(fn);
     init(std::unique_ptr<ByteSourceBase>(
         new detail::NonOwningIStreamByteSource(in)));
   }
 
-  LineReader(const std::string &file_name, std::istream &in) {
-    set_file_name(file_name.c_str());
+  LineReader(const std::string &fn, std::istream &in) {
+    set_file_name(fn.c_str());
     init(std::unique_ptr<ByteSourceBase>(
         new detail::NonOwningIStreamByteSource(in)));
   }
 
-  void set_file_name(const std::string &file_name) {
-    set_file_name(file_name.c_str());
-  }
+  void set_file_name(const std::string &fn) { set_file_name(fn.c_str()); }
 
-  void set_file_name(const char *file_name) {
-    if (file_name != nullptr) {
-      strncpy(this->file_name, file_name, sizeof(this->file_name));
+  void set_file_name(const char *fn) {
+    if (fn != nullptr) {
+      strncpy(this->file_name, fn, sizeof(this->file_name));
       this->file_name[sizeof(this->file_name) - 1] = '\0';
     } else {
       this->file_name[0] = '\0';
@@ -410,7 +406,7 @@ class LineReader {
 
   const char *get_truncated_file_name() const { return file_name; }
 
-  void set_file_line(unsigned file_line) { this->file_line = file_line; }
+  void set_file_line(unsigned fl) { this->file_line = fl; }
 
   unsigned get_file_line() const { return file_line; }
 
@@ -476,9 +472,9 @@ struct with_column_name {
     std::memset(column_name, 0, max_column_name_length + 1);
   }
 
-  void set_column_name(const char *column_name) {
-    if (column_name != nullptr) {
-      std::strncpy(this->column_name, column_name, max_column_name_length);
+  void set_column_name(const char *cn) {
+    if (cn != nullptr) {
+      std::strncpy(this->column_name, cn, max_column_name_length);
       this->column_name[max_column_name_length] = '\0';
     } else {
       this->column_name[0] = '\0';
@@ -495,10 +491,9 @@ struct with_column_content {
     std::memset(column_content, 0, max_column_content_length + 1);
   }
 
-  void set_column_content(const char *column_content) {
-    if (column_content != nullptr) {
-      std::strncpy(this->column_content, column_content,
-                   max_column_content_length);
+  void set_column_content(const char *cc) {
+    if (cc != nullptr) {
+      std::strncpy(this->column_content, cc, max_column_content_length);
       this->column_content[max_column_content_length] = '\0';
     } else {
       this->column_content[0] = '\0';
@@ -904,23 +899,19 @@ void parse_unsigned_integer(const char *col, T &x) {
 }
 
 template <class overflow_policy>
-void parse(char *col, unsigned char &x) {
+void parse(char *col, uint8_t &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, unsigned short &x) {
+void parse(char *col, uint16_t &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, unsigned int &x) {
+void parse(char *col, uint32_t &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, unsigned long &x) {
-  parse_unsigned_integer<overflow_policy>(col, x);
-}
-template <class overflow_policy>
-void parse(char *col, unsigned long long &x) {
+void parse(char *col, uint64_t &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 
@@ -949,23 +940,19 @@ void parse_signed_integer(const char *col, T &x) {
 }
 
 template <class overflow_policy>
-void parse(char *col, signed char &x) {
+void parse(char *col, int8_t &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, signed short &x) {
+void parse(char *col, int16_t &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, signed int &x) {
+void parse(char *col, int32_t &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, signed long &x) {
-  parse_signed_integer<overflow_policy>(col, x);
-}
-template <class overflow_policy>
-void parse(char *col, signed long long &x) {
+void parse(char *col, int64_t &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 
