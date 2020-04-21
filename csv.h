@@ -39,6 +39,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "optional.hpp"
 #ifndef CSV_IO_NO_THREAD
 #include <condition_variable>
 #include <mutex>
@@ -882,16 +883,16 @@ void parse(char *col, char *&x) {
 }
 
 template <class overflow_policy, class T>
-void parse_unsigned_integer(const char *col, T &x) {
-  x = 0;
+void parse_unsigned_integer(const char *col, optional<T> &x) {
+  x = {};
   while (*col != '\0') {
     if ('0' <= *col && *col <= '9') {
       T y = *col - '0';
-      if (x > (std::numeric_limits<T>::max() - y) / 10) {
-        overflow_policy::on_overflow(x);
+      if (x && *x > (std::numeric_limits<T>::max() - y) / 10) {
+        overflow_policy::on_overflow(*x);
         return;
       }
-      x = 10 * x + y;
+      x = (x ? 10 * *x : 0) + y;
     } else
       throw error::no_digit();
     ++col;
@@ -899,36 +900,36 @@ void parse_unsigned_integer(const char *col, T &x) {
 }
 
 template <class overflow_policy>
-void parse(char *col, uint8_t &x) {
+void parse(char *col, optional<uint8_t> &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, uint16_t &x) {
+void parse(char *col, optional<uint16_t> &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, uint32_t &x) {
+void parse(char *col, optional<uint32_t> &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, uint64_t &x) {
+void parse(char *col, optional<uint64_t> &x) {
   parse_unsigned_integer<overflow_policy>(col, x);
 }
 
 template <class overflow_policy, class T>
-void parse_signed_integer(const char *col, T &x) {
+void parse_signed_integer(const char *col, optional<T> &x) {
   if (*col == '-') {
     ++col;
 
-    x = 0;
+    x = {};
     while (*col != '\0') {
       if ('0' <= *col && *col <= '9') {
         T y = *col - '0';
-        if (x < (std::numeric_limits<T>::min() + y) / 10) {
-          overflow_policy::on_underflow(x);
+        if (x && *x < (std::numeric_limits<T>::min() + y) / 10) {
+          overflow_policy::on_underflow(*x);
           return;
         }
-        x = 10 * x - y;
+        *x = (x ? 10 * *x : 0) - y;
       } else
         throw error::no_digit();
       ++col;
@@ -940,24 +941,24 @@ void parse_signed_integer(const char *col, T &x) {
 }
 
 template <class overflow_policy>
-void parse(char *col, int8_t &x) {
+void parse(char *col, optional<int8_t> &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, int16_t &x) {
+void parse(char *col, optional<int16_t> &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, int32_t &x) {
+void parse(char *col, optional<int32_t> &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, int64_t &x) {
+void parse(char *col, optional<int64_t> &x) {
   parse_signed_integer<overflow_policy>(col, x);
 }
 
 template <class T>
-void parse_float(const char *col, T &x) {
+void parse_float(const char *col, optional<T> &x) {
   bool is_neg = false;
   if (*col == '-') {
     is_neg = true;
@@ -965,11 +966,11 @@ void parse_float(const char *col, T &x) {
   } else if (*col == '+')
     ++col;
 
-  x = 0;
+  x = {};
   while ('0' <= *col && *col <= '9') {
     int y = *col - '0';
-    x *= 10;
-    x += y;
+    x = (x ? *x * 10 : 0);
+    *x += y;
     ++col;
   }
 
@@ -980,58 +981,65 @@ void parse_float(const char *col, T &x) {
       pos /= 10;
       int y = *col - '0';
       ++col;
-      x += y * pos;
+      x = (x ? *x + y * pos : y * pos);
     }
+  }
+
+  if (!x) {
+    return;
   }
 
   if (*col == 'e' || *col == 'E') {
     ++col;
-    int e;
+    optional<int> e;
 
     parse_signed_integer<set_to_max_on_overflow>(col, e);
+    if (!e) {
+      e = 0;
+    }
 
-    if (e != 0) {
+    if (*e != 0) {
       T base;
-      if (e < 0) {
+      if (*e < 0) {
         base = 0.1;
-        e = -e;
+        *e = -*e;
       } else {
         base = 10;
       }
 
-      while (e != 1) {
-        if ((e & 1) == 0) {
+      while (*e != 1) {
+        if ((*e & 1) == 0) {
           base = base * base;
-          e >>= 1;
+          *e >>= 1;
         } else {
-          x *= base;
-          --e;
+          *x *= base;
+          --*e;
         }
       }
-      x *= base;
+      *x *= base;
     }
   } else {
     if (*col != '\0') throw error::no_digit();
   }
 
-  if (is_neg) x = -x;
+  if (is_neg) *x = -*x;
 }
 
 template <class overflow_policy>
-void parse(char *col, float &x) {
+void parse(char *col, optional<float> &x) {
   parse_float(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, double &x) {
+void parse(char *col, optional<double> &x) {
   parse_float(col, x);
 }
 template <class overflow_policy>
-void parse(char *col, long double &x) {
+void parse(char *col, optional<long double> &x) {
   parse_float(col, x);
 }
 
 template <class overflow_policy, class T>
-void parse(char *col, T &x) {
+void parse(char *col, optional<T> &x) {
   // Mute unused variable compiler warning
   (void)col;
   (void)x;
@@ -1143,7 +1151,7 @@ class CSVReader {
   void parse_helper(std::size_t) {}
 
   template <class T, class... ColType>
-  void parse_helper(std::size_t r, T &t, ColType &... cols) {
+  void parse_helper(std::size_t r, T &t, optional<ColType> &... cols) {
     if (row[r]) {
       try {
         try {
@@ -1162,7 +1170,7 @@ class CSVReader {
 
  public:
   template <class... ColType>
-  bool read_row(ColType &... cols) {
+  bool read_row(optional<ColType> &... cols) {
     static_assert(sizeof...(ColType) >= column_count,
                   "not enough columns specified");
     static_assert(sizeof...(ColType) <= column_count,
