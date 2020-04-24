@@ -929,7 +929,7 @@ void parse_signed_integer(const char *col, optional<T> &x) {
           overflow_policy::on_underflow(*x);
           return;
         }
-        *x = (x ? 10 * *x : 0) - y;
+        x = (x ? 10 * *x : 0) - y;
       } else
         throw error::no_digit();
       ++col;
