@@ -49,6 +49,19 @@
 #include <istream>
 #include <memory>
 
+namespace std {
+namespace experimental {
+
+template <class T>
+class optional;
+
+}
+}
+
+// To improve readability, we alias `std::experimental::optional` to `optional`.
+template <typename T>
+using optional = std::experimental::optional<T>;
+
 namespace io {
 ////////////////////////////////////////////////////////////////////////////
 //                                 LineReader                             //
@@ -561,8 +574,7 @@ struct escaped_string_not_closed : base, with_file_name, with_file_line {
 struct missing_value : base, with_file_name, with_file_line {
   void format_error_message() const {
     std::snprintf(error_message_buffer, sizeof(error_message_buffer),
-                  "A line in the csv is missing a value.",
-                  file_line, file_name);
+                  "A line in the csv is missing a value.");
   }
 };
 
@@ -1048,6 +1060,17 @@ bool parse(char *col, double &x) {
 template <class overflow_policy>
 bool parse(char *col, long double &x) {
   return parse_float(col, x);
+}
+
+template <class overflow_policy, class T>
+bool parse(char *col, optional<T> &x) {
+  T x_value;
+  if (parse<overflow_policy>(col, x_value)) {
+    x = x_value;
+  } else {
+    x = {};
+  }
+  return true;
 }
 
 template <class overflow_policy, class T>
