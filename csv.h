@@ -49,19 +49,6 @@
 #include <istream>
 #include <memory>
 
-namespace std {
-namespace experimental {
-
-template <class T>
-class optional;
-
-}
-}
-
-// To improve readability, we alias `std::experimental::optional` to `optional`.
-template <typename T>
-using optional = std::experimental::optional<T>;
-
 namespace io {
 ////////////////////////////////////////////////////////////////////////////
 //                                 LineReader                             //
@@ -1062,6 +1049,7 @@ bool parse(char *col, long double &x) {
   return parse_float(col, x);
 }
 
+#ifdef FAST_CSV_OPTION_TYPE_SUPPORT
 template <class overflow_policy, class T>
 bool parse(char *col, optional<T> &x) {
   T x_value;
@@ -1072,6 +1060,7 @@ bool parse(char *col, optional<T> &x) {
   }
   return true;
 }
+#endif // FAST_CSV_OPTION_TYPE_SUPPORT
 
 template <class overflow_policy, class T>
 bool parse(char *col, T &x) {
