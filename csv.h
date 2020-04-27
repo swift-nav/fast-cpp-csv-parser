@@ -877,7 +877,7 @@ bool parse(char *col, char &x) {
 template <class overflow_policy>
 bool parse(char *col, std::string &x) {
   x = col;
-  return x.size() > 0;
+  return true;
 }
 
 template <class overflow_policy>
