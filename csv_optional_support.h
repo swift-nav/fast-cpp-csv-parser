@@ -20,7 +20,7 @@ namespace detail {
 template <class overflow_policy, class T>
 bool parse(char *col, optional<T> &x) {
   T x_value;
-  if (parse(col, x_value)) {
+  if (parse<overflow_policy>(col, x_value)) {
     x = x_value;
   } else {
     x = {};
