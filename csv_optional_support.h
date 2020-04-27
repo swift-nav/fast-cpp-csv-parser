@@ -17,7 +17,7 @@ namespace io {
 
 namespace detail {
 
-template <typename T>
+template <class overflow_policy, class T>
 bool parse(char *col, optional<T> &x) {
   T x_value;
   if (parse(col, x_value)) {
