@@ -867,6 +867,7 @@ void parse_header_line(char *line, std::vector<int> &col_order,
 
 template <class overflow_policy>
 bool parse(char *col, char &x) {
+  if (!col) return false;
   if (!*col) throw error::invalid_single_character();
   x = *col;
   ++col;
@@ -876,24 +877,28 @@ bool parse(char *col, char &x) {
 
 template <class overflow_policy>
 bool parse(char *col, std::string &x) {
+  if (!col) return false;
   x = col;
   return true;
 }
 
 template <class overflow_policy>
 bool parse(char *col, const char *&x) {
+  if (!col) return false;
   x = col;
   return true;
 }
 
 template <class overflow_policy>
 bool parse(char *col, char *&x) {
+  if (!col) return false;
   x = col;
   return true;
 }
 
 template <class overflow_policy, class T>
 bool parse_unsigned_integer(const char *col, T &x) {
+  if (!col) return false;
   x = 0;
   bool set = false;
   while (*col != '\0') {
@@ -931,6 +936,7 @@ bool parse(char *col, uint64_t &x) {
 
 template <class overflow_policy, class T>
 bool parse_signed_integer(const char *col, T &x) {
+  if (!col) return false;
   if (*col == '-') {
     ++col;
 
@@ -974,6 +980,7 @@ bool parse(char *col, int64_t &x) {
 
 template <class T>
 bool parse_float(const char *col, T &x) {
+  if (!col) return false;
   bool is_neg = false;
   if (*col == '-') {
     is_neg = true;
@@ -1178,18 +1185,16 @@ class CSVReader {
   template <class T, class... ColType>
   bool parse_helper(std::size_t r, T &t, ColType &... cols) {
     bool success = false;
-    if (row[r]) {
+    try {
       try {
-        try {
-          success = ::io::detail::parse<overflow_policy>(row[r], t);
-        } catch (error::with_column_content &err) {
-          err.set_column_content(row[r]);
-          throw;
-        }
-      } catch (error::with_column_name &err) {
-        err.set_column_name(column_names[r].c_str());
+        success = ::io::detail::parse<overflow_policy>(row[r], t);
+      } catch (error::with_column_content &err) {
+        err.set_column_content(row[r]);
         throw;
       }
+    } catch (error::with_column_name &err) {
+      err.set_column_name(column_names[r].c_str());
+      throw;
     }
     return success && parse_helper(r + 1, cols...);
   }
