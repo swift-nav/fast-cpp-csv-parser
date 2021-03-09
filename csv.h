@@ -903,13 +903,13 @@ bool parse_unsigned_integer(const char *col, T &x) {
   bool set = false;
   while (*col != '\0') {
     if ('0' <= *col && *col <= '9') {
-      T y = *col - '0';
+      T y = static_cast<T>(*col - '0');
       if (x > (std::numeric_limits<T>::max() - y) / 10) {
         overflow_policy::on_overflow(x);
         return true;
       }
       set = true;
-      x = 10 * x + y;
+      x = static_cast<T>(10 * x + y);
     } else
       throw error::no_digit();
     ++col;
@@ -944,13 +944,13 @@ bool parse_signed_integer(const char *col, T &x) {
     x = 0;
     while (*col != '\0') {
       if ('0' <= *col && *col <= '9') {
-        T y = *col - '0';
+        T y = static_cast<T>(*col - '0');
         if (x < (std::numeric_limits<T>::min() + y) / 10) {
           overflow_policy::on_underflow(x);
           return true;
         }
         set = true;
-        x = 10 * x - y;
+        x = static_cast<T>(10 * x - y);
       } else
         throw error::no_digit();
       ++col;
