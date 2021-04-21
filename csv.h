@@ -163,11 +163,11 @@ class NonOwningIStreamByteSource : public ByteSourceBase {
 
 class NonOwningStringByteSource : public ByteSourceBase {
  public:
-  NonOwningStringByteSource(const char *string, int32_t size)
+  NonOwningStringByteSource(const char *string, int size)
       : str(string), remaining_byte_count(size) {}
 
-  int32_t read(char *buffer, int desired_byte_count) {
-    int32_t to_copy_byte_count = desired_byte_count;
+  int read(char *buffer, int desired_byte_count) {
+    int to_copy_byte_count = desired_byte_count;
     if (remaining_byte_count < to_copy_byte_count)
       to_copy_byte_count = remaining_byte_count;
     std::memcpy(buffer, str, to_copy_byte_count);
@@ -180,7 +180,7 @@ class NonOwningStringByteSource : public ByteSourceBase {
 
  private:
   const char *str;
-  int32_t remaining_byte_count;
+  int remaining_byte_count;
 };
 
 #ifndef CSV_IO_NO_THREAD
