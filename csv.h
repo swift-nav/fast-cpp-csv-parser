@@ -49,6 +49,11 @@
 #include <istream>
 #include <memory>
 
+#pragma GCC diagnostic push
+#if __GNUC__ && __GNUC__ >= 8
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
+
 namespace io {
 ////////////////////////////////////////////////////////////////////////////
 //                                 LineReader                             //
@@ -1232,4 +1237,5 @@ class CSVReader {
   }
 };
 }  // namespace io
+#pragma GCC diagnostic pop
 #endif
