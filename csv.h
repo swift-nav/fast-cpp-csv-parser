@@ -315,14 +315,13 @@ class LineReader {
       err.set_file_name(file_name);
       throw err;
     }
-    return std::unique_ptr<ByteSourceBase>(
-        new detail::OwningStdIOByteSourceBase(file));
+    return std::make_unique<detail::OwningStdIOByteSourceBase>(file);
   }
 
   void init(std::unique_ptr<ByteSourceBase> byte_source) {
     file_line = 0;
 
-    buffer = std::unique_ptr<char[]>(new char[3 * block_len]);
+    buffer = std::make_unique<char[]>(3 * block_len);
     data_begin = 0;
     data_end = byte_source->read(buffer.get(), 2 * block_len);
 
