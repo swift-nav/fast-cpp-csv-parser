@@ -363,38 +363,34 @@ class LineReader {
 
   LineReader(const char *fn, const char *data_b, const char *data_e) {
     set_file_name(fn);
-    init(std::unique_ptr<ByteSourceBase>(new detail::NonOwningStringByteSource(
-        data_b, (int32_t)(data_e - data_b))));
+    init(std::make_unique<detail::NonOwningStringByteSource>(
+        data_b, (int32_t)(data_e - data_b)));
   }
 
   LineReader(const std::string &fn, const char *data_b, const char *data_e) {
     set_file_name(fn.c_str());
-    init(std::unique_ptr<ByteSourceBase>(new detail::NonOwningStringByteSource(
-        data_b, (int32_t)(data_e - data_b))));
+    init(std::make_unique<detail::NonOwningStringByteSource>(
+        data_b, (int32_t)(data_e - data_b)));
   }
 
   LineReader(const char *fn, FILE *file) {
     set_file_name(fn);
-    init(std::unique_ptr<ByteSourceBase>(
-        new detail::OwningStdIOByteSourceBase(file)));
+    init(std::make_unique<detail::OwningStdIOByteSourceBase>(file));
   }
 
   LineReader(const std::string &fn, FILE *file) {
     set_file_name(fn.c_str());
-    init(std::unique_ptr<ByteSourceBase>(
-        new detail::OwningStdIOByteSourceBase(file)));
+    init(std::make_unique<detail::OwningStdIOByteSourceBase>(file));
   }
 
   LineReader(const char *fn, std::istream &in) {
     set_file_name(fn);
-    init(std::unique_ptr<ByteSourceBase>(
-        new detail::NonOwningIStreamByteSource(in)));
+    init(std::make_unique<detail::NonOwningIStreamByteSource>(in));
   }
 
   LineReader(const std::string &fn, std::istream &in) {
     set_file_name(fn.c_str());
-    init(std::unique_ptr<ByteSourceBase>(
-        new detail::NonOwningIStreamByteSource(in)));
+    init(std::make_unique<detail::NonOwningIStreamByteSource>(in));
   }
 
   void set_file_name(const std::string &fn) { set_file_name(fn.c_str()); }
